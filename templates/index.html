@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Aura | Welcome</title>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+    <div class="wave-container"><div class="wave"></div></div>
+    <div class="card p-16 text-center max-w-lg">
+        <h1 class="text-7xl font-bold text-sky-900 mb-2">Aura</h1>
+        <p class="text-2xl text-sky-700 mb-12">Peace, Memory, and Connection</p>
+        <div class="space-y-6">
+            <a href="/patient" class="btn-main">Start My Day</a>
+            <a href="/caregiver" class="block text-sky-600 hover:underline">Caregiver Settings</a>
+        </div>
+    </div>
+</body>
+</html>

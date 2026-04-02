@@ -1,0 +1,32 @@
+# --- CRITICAL: Private API Keys ---
+.env
+.env.local
+.env.*
+
+# --- Python Virtual Environments ---
+venv/
+.venv/
+env/
+ENV/
+bin/
+Lib/
+Include/
+Scripts/
+pyvenv.cfg
+
+# --- Python Cache (Auto-generated junk) ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# --- IDE Settings (Optional but clean) ---
+.vscode/
+.idea/
+*.swp
+
+# --- OS Specific Files ---
+.DS_Store
+Thumbs.db

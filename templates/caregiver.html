@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Caregiver Portal</title>
+</head>
+<body class="p-10">
+    <div class="max-w-xl mx-auto card p-12">
+        <h1 class="text-4xl font-bold text-sky-900 mb-8 text-center">Add a Memory</h1>
+        <form action="/caregiver" method="POST" class="space-y-6">
+            <input type="text" name="name" placeholder="Person's Name" class="w-full p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-400 outline-none" required>
+            <input type="text" name="relation" placeholder="Relationship (e.g. Grandson)" class="w-full p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-400 outline-none" required>
+            <textarea name="message" placeholder="A short message for the patient" class="w-full p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-400 outline-none"></textarea>
+            <input type="text" name="image_url" placeholder="Image URL (Paste from Google/Web)" class="w-full p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-400 outline-none" required>
+            <button type="submit" class="btn-main w-full mt-4">Save to Aura</button>
+        </form>
+    </div>
+</body>
+</html>
