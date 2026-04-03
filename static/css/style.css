@@ -13,19 +13,32 @@ body {
     overflow-x: hidden;
 }
 
+/* Updated Bulletproof Wave */
+.wave {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 120'%3E%3Cpath fill='%230ea5e9' fill-opacity='0.4' d='M0,64L80,69.3C160,75,320,85,480,80C640,75,800,53,960,48C1120,43,1280,53,1360,58.7L1440,64L1440,120L1360,120C1280,120,1120,120,960,120C800,120,640,120,480,120C320,120,160,120,80,120L0,120Z'%3E%3C/path%3E%3C/svg%3E") repeat-x;
+    position: absolute;
+    bottom: 0;
+    width: 6400px;
+    height: 100%;
+    animation: wave-move 25s linear infinite;
+    transform: translate3d(0, 0, 0);
+}
+
+@keyframes wave-move {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-1600px); }
+}
+
 .wave-container {
     position: fixed;
-    bottom: 0; width: 100%; height: 120px;
-    z-index: -1; opacity: 0.4;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 150px; /* Increased height for better visibility */
+    overflow: hidden;
+    z-index: -1;
+    pointer-events: none;
 }
-
-.wave {
-    background: url('https://i.imgur.com/8W9n6S0.png') repeat-x;
-    width: 6400px; height: 100%;
-    animation: wave-move 25s linear infinite;
-}
-
-@keyframes wave-move { 0% { transform: translateX(0); } 100% { transform: translateX(-1600px); } }
 
 .card {
     background: rgba(255, 255, 255, 0.45);
