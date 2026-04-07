@@ -1,34 +1,45 @@
 import os
 import requests
-from flask import Flask, render_template, request, jsonify
-from openai import OpenAI
-from datetime import datetime
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from dotenv import load_dotenv
 
 load_dotenv()
 app = Flask(__name__)
-ai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+app.secret_key = os.environ.get("FLASK_SECRET", "aura_pro_stable_v10")
 
-# Supabase Config
 SB_URL = os.environ.get("SUPABASE_URL")
 SB_KEY = os.environ.get("SUPABASE_KEY")
+GROQ_KEY = os.environ.get("GROQ_API_KEY")
 
 
-def db_query(table, method="GET", data=None):
+def sb_api(endpoint, method="GET", data=None, auth_token=None):
     headers = {
         "apikey": SB_KEY,
-        "Authorization": f"Bearer {SB_KEY}",
+        "Authorization": f"Bearer {auth_token if auth_token else SB_KEY}",
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
-    url = f"{SB_URL}/rest/v1/{table}"
+    url = f"{SB_URL}/{endpoint}"
     try:
         if method == "POST":
             return requests.post(url, headers=headers, json=data).json()
         return requests.get(url, headers=headers).json()
-    except Exception as e:
-        print(f"Database error: {e}")
+    except:
         return []
+
+
+def get_profile(uid, token):
+    data = sb_api(f"rest/v1/profiles?id=eq.{uid}", auth_token=token)
+    if isinstance(data, list) and len(data) > 0:
+        return data[0]
+    new_p = {
+        "id": uid,
+        "patient_name": "Friend",
+        "location_status": "at home",
+        "ai_personal_context": "A kind soul.",
+    }
+    sb_api("rest/v1/profiles", "POST", new_p, auth_token=token)
+    return new_p
 
 
 @app.route("/")
@@ -36,70 +47,123 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        email, pw = request.form.get("email"), request.form.get("password")
+        res = requests.post(
+            f"{SB_URL}/auth/v1/signup",
+            headers={"apikey": SB_KEY},
+            json={"email": email, "password": pw},
+        ).json()
+        if "id" in res:
+            return redirect(url_for("login"))
+    return render_template("signup.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email, pw = request.form.get("email"), request.form.get("password")
+        res = requests.post(
+            f"{SB_URL}/auth/v1/token?grant_type=password",
+            headers={"apikey": SB_KEY},
+            json={"email": email, "password": pw},
+        ).json()
+        if "access_token" in res:
+            session["user_token"], session["user_id"] = (
+                res["access_token"],
+                res["user"]["id"],
+            )
+            session["chat_history"] = []
+            return redirect(url_for("patient_view"))
+    return render_template("login.html")
+
+
 @app.route("/patient")
 def patient_view():
-    memories = db_query("memories")
-    profiles = db_query("profiles")
-    profile = (
-        profiles[0]
-        if (isinstance(profiles, list) and len(profiles) > 0)
-        else {"name": "Friend", "location_status": "at home"}
-    )
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    profile = get_profile(session["user_id"], session["user_token"])
+    memories = sb_api("rest/v1/memories", auth_token=session["user_token"])
     return render_template("patient.html", memories=memories, profile=profile)
 
 
 @app.route("/caregiver", methods=["GET", "POST"])
-def caregiver_view():
+def caregiver_portal():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    uid, token = session["user_id"], session["user_token"]
     if request.method == "POST":
-        new_memory = {
-            "name": request.form.get("name"),
-            "relationship": request.form.get("relation"),
-            "message": request.form.get("message"),
-            "image_url": request.form.get("image_url"),
-        }
-        db_query("memories", method="POST", data=new_memory)
-    return render_template("caregiver.html")
-
-
-@app.route("/api/daily_muse")
-def daily_muse():
-    profile = db_query("profiles")[0]
-    memories = db_query("memories")
-    family = [m["name"] for m in memories]
-
-    prompt = f"Write a 2-sentence comforting morning letter for {profile['name']} who has memory loss. Mention their loved ones: {', '.join(family)}. Be nurturing and simple."
-    try:
-        response = ai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
+        form_type = request.form.get("form_type")
+        if form_type == "profile":
+            sb_api(
+                f"rest/v1/profiles?id=eq.{uid}",
+                "POST",
                 {
-                    "role": "system",
-                    "content": "You are a gentle memory-care assistant.",
+                    "patient_name": request.form.get("p_name"),
+                    "location_status": request.form.get("p_loc"),
+                    "ai_personal_context": request.form.get("ai_context"),
                 },
-                {"role": "user", "content": prompt},
-            ],
-        )
-        msg = response.choices[0].message.content
-    except:
-        msg = f"Good morning, {profile['name']}. It is a beautiful day to be with your family."
+                auth_token=token,
+            )
+        elif form_type == "memory":
+            sb_api(
+                "rest/v1/memories",
+                "POST",
+                {
+                    "user_id": uid,
+                    "name": request.form.get("m_name"),
+                    "relationship": request.form.get("m_rel"),
+                    "image_url": request.form.get("m_url"),
+                },
+                auth_token=token,
+            )
+    profile = get_profile(uid, token)
+    return render_template("caregiver.html", profile=profile)
 
-    return jsonify({"message": msg})
 
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    if "user_id" not in session:
+        return jsonify({"reply": "Expired"})
+    user_msg = request.json.get("message")
+    profile = get_profile(session["user_id"], session["user_token"])
 
-@app.route("/log_game", methods=["POST"])
-def log_game():
-    data = request.json
-    db_query(
-        "cognitive_logs",
-        method="POST",
-        data={
-            "game_type": data["type"],
-            "accuracy": data["accuracy"],
-            "response_time": data["time"],
-            "logged_at": datetime.now().isoformat(),
+    messages = [
+        {
+            "role": "system",
+            "content": f"""You are Aura, a nurturing, calm companion for {profile["patient_name"]}. 
+            Your tone is that of a standard American nurse. 
+            Speak slowly and use commas frequently to create natural pauses. 
+            Example: 'I am here, and I am listening, dear.'
+            Keep responses to one or two sentences maximum. 
+            Always focus on the user's comfort.""",
         },
-    )
-    return jsonify({"status": "logged"})
+    ]
+
+    if "chat_history" in session:
+        for m in session["chat_history"][-4:]:
+            messages.append(m)
+    messages.append({"role": "user", "content": user_msg})
+
+    try:
+        res = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_KEY}"},
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": messages,
+                "temperature": 0.5,
+            },
+        ).json()
+        reply = res["choices"][0]["message"]["content"].strip()
+        session["chat_history"].append({"role": "user", "content": user_msg})
+        session["chat_history"].append({"role": "assistant", "content": reply})
+        session.modified = True
+        return jsonify({"reply": reply})
+    except:
+        return jsonify({"reply": "I am right here with you. It is a lovely day."})
 
 
 if __name__ == "__main__":

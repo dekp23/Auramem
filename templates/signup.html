@@ -1,0 +1,17 @@
+<body class="p-10 bg-sky-100 flex items-center justify-center min-h-screen">
+    <div class="card p-10 w-full max-w-md">
+        <h2 class="text-3xl font-bold mb-6 text-sky-900">Sign Up</h2>
+        <p class="mb-6 text-sky-700">Create an account to manage family memories and customize the AI.</p>
+        
+        <form action="/signup" method="POST" class="space-y-4">
+            <input type="email" name="email" placeholder="Caregiver Email" class="w-full" required>
+            <input type="password" name="password" placeholder="Choose a Password" class="w-full" required>
+            <button type="submit" class="btn-main w-full py-4 rounded-xl font-bold">Create Account</button>
+        </form>
+
+        <div class="mt-6 text-center border-t pt-4">
+            <p class="text-sky-800">Already have an account?</p>
+            <a href="/login" class="text-sky-600 font-bold hover:underline">Log in here</a>
+        </div>
+    </div>
+</body>

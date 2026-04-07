@@ -1,20 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Caregiver Portal</title>
+    <title>Caregiver Dashboard</title>
 </head>
-<body class="p-10">
-    <div class="max-w-xl mx-auto card p-12">
-        <h1 class="text-4xl font-bold text-sky-900 mb-8 text-center">Add a Memory</h1>
-        <form action="/caregiver" method="POST" class="space-y-6">
-            <input type="text" name="name" placeholder="Person's Name" class="w-full p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-400 outline-none" required>
-            <input type="text" name="relation" placeholder="Relationship (e.g. Grandson)" class="w-full p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-400 outline-none" required>
-            <textarea name="message" placeholder="A short message for the patient" class="w-full p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-400 outline-none"></textarea>
-            <input type="text" name="image_url" placeholder="Image URL (Paste from Google/Web)" class="w-full p-4 rounded-2xl border-2 border-sky-100 focus:border-sky-400 outline-none" required>
-            <button type="submit" class="btn-main w-full mt-4">Save to Aura</button>
-        </form>
+<body class="p-10 bg-slate-50">
+    <div class="max-w-5xl mx-auto space-y-12">
+        <div class="flex justify-between items-center">
+            <h1 class="text-4xl font-bold text-sky-950 underline">Aura Control Center</h1>
+            <a href="/patient" class="text-sky-600 font-bold">View Patient Board ➜</a>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-10">
+            <!-- AI Brain Section -->
+            <form action="/caregiver" method="POST" class="card p-10 space-y-4">
+                <input type="hidden" name="form_type" value="profile">
+                <h2 class="text-2xl font-bold text-sky-900">Aura's Brain (AI Memory)</h2>
+                <input name="p_name" value="{{ profile.patient_name }}" class="w-full" placeholder="Patient's Name">
+                <input name="p_loc" value="{{ profile.location_status }}" class="w-full" placeholder="Current Location">
+                <textarea name="ai_context" class="w-full h-40" placeholder="Facts for AI... (e.g. He was a pilot, loves dogs)">{{ profile.ai_personal_context }}</textarea>
+                <button type="submit" class="btn-main w-full">Save AI Context</button>
+            </form>
+
+            <!-- Memory Upload Section -->
+            <form action="/caregiver" method="POST" class="card p-10 space-y-4">
+                <input type="hidden" name="form_type" value="memory">
+                <h2 class="text-2xl font-bold text-sky-900">Add Memory Photo</h2>
+                <input name="m_name" class="w-full" placeholder="Person's Name">
+                <input name="m_rel" class="w-full" placeholder="Relationship">
+                <input name="m_url" class="w-full" placeholder="Image URL">
+                <textarea name="m_msg" class="w-full h-20" placeholder="Short Message"></textarea>
+                <button type="submit" class="btn-main w-full bg-emerald-600">Upload Memory</button>
+            </form>
+        </div>
+
+        <!-- Reporting Section -->
+        <div class="card p-10">
+            <h2 class="text-2xl font-bold text-sky-900 mb-4">Clinical Progress Report</h2>
+            <button onclick="getReport()" class="btn-main bg-amber-600">Generate AI Summary for Doctor</button>
+            <div id="report-output" class="mt-6 p-6 bg-white rounded-2xl italic text-gray-700">No report generated yet.</div>
+        </div>
     </div>
+
+    <script>
+        async function getReport() {
+            const out = document.getElementById('report-output');
+            out.innerText = "Analyzing logs...";
+            const res = await fetch('/api/generate_report');
+            const data = await res.json();
+            out.innerText = data.report;
+        }
+    </script>
 </body>
 </html>

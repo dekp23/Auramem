@@ -1,57 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=final">
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Aura Pro | My Board</title>
+    <title>Aura | My Board</title>
 </head>
-<body>
+<body class="p-4 lg:p-10">
+    <!-- SAFE DATA VAULT -->
+    <script id="memory-vault" type="application/json">{{ memories|tojson|safe }}</script>
+    
     <div class="wave-container"><div class="wave"></div></div>
 
-    <div class="container mx-auto max-w-6xl px-6 py-16">
-        <!-- AI Morning Muse -->
-        <header class="card p-12 text-center mb-12">
-            <h1 class="text-6xl font-bold text-sky-950 mb-4">Hello, {{ profile.name }}!</h1>
-            <p id="ai-muse" class="text-3xl text-sky-800 leading-relaxed italic animate-pulse">Connecting with your family history...</p>
-            <button onclick="speakNurturing('ai-muse')" class="btn-main mt-8 text-2xl">🔊 Hear Today's Note</button>
-        </header>
-
-        <div class="grid lg:grid-cols-2 gap-12">
-            <!-- Personalized Memories -->
-            <section class="card p-10 max-h-[700px] overflow-y-auto">
-                <h2 class="text-3xl font-bold mb-10 text-sky-900 border-b pb-4">Your Loved Ones</h2>
-                {% for m in memories %}
-                <div class="flex items-center gap-8 mb-12">
-                    <img src="{{ m.image_url }}" class="w-40 h-40 rounded-full border-8 border-white shadow-xl object-cover">
-                    <div>
-                        <h3 class="text-4xl font-bold">{{ m.name }}</h3>
-                        <p class="text-2xl text-sky-600">{{ m.relationship }}</p>
-                        <p class="text-xl italic text-sky-800">"{{ m.message }}"</p>
-                    </div>
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <section class="card p-10 flex flex-col min-h-[600px]">
+            <h1 class="text-6xl font-bold text-sky-900 mb-2">Hello, {{ profile.patient_name }}</h1>
+            <p class="text-2xl text-sky-600 mb-8 italic">You are {{ profile.location_status }}.</p>
+            <div class="bg-white/40 rounded-3xl p-6 border-2 border-white flex-grow flex flex-col">
+                <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 h-[350px]"></div>
+                <div class="flex gap-3">
+                    <input id="chat-input" type="text" class="flex-grow p-4 rounded-full shadow-md outline-none" placeholder="Talk to Aura...">
+                    <button onclick="startVoice()" class="btn-main !p-4 bg-sky-400 shadow-lg">🎤</button>
+                    <button onclick="sendChat()" class="btn-main !p-4 shadow-lg">➜</button>
                 </div>
-                {% endfor %}
-            </section>
+            </div>
+        </section>
 
-            <!-- Therapy Suite -->
-            <section class="flex flex-col gap-6">
-                <button onclick='startFaceMatch({{ memories|tojson|safe }})' class="btn-main py-12 text-4xl">🧩 Memory Game</button>
-                <button onclick="startWordSearch()" class="btn-main py-12 text-4xl bg-sky-600">🔍 Nature Search</button>
-                <button onclick="startCrossword()" class="btn-main py-12 text-4xl bg-sky-700">✍️ Daily Puzzle</button>
-                <a href="/" class="text-center text-sky-600 font-bold mt-12 text-2xl hover:underline">← Exit Board</a>
-            </section>
-        </div>
+        <section class="flex flex-col gap-6">
+            <button onclick="startCrossword()" class="btn-main py-10 text-4xl bg-sky-800">✍️ Daily Puzzle</button>
+            <button onclick="startWordSearch()" class="btn-main py-10 text-4xl bg-sky-600">🔍 Nature Search</button>
+            <button onclick="startFaceMatch()" class="btn-main py-10 text-4xl bg-sky-500">🧩 Memory Game</button>
+            
+            <div class="card p-6 mt-auto">
+                <h2 class="text-xl font-bold mb-4 text-sky-800">Your Loved Ones</h2>
+                <div class="flex gap-4 overflow-x-auto pb-2">
+                    {% for m in memories %}
+                    <img src="{{ m.image_url }}" class="w-24 h-24 rounded-full border-4 border-white object-cover shadow-md flex-shrink-0" title="{{ m.name }}">
+                    {% endfor %}
+                </div>
+                <div class="text-center mt-4"><a href="/caregiver" class="text-sky-400 underline">Caregiver Settings</a></div>
+            </div>
+        </section>
     </div>
-
     <script src="{{ url_for('static', filename='js/games.js') }}"></script>
-    <script>
-        async function fetchMuse() {
-            const r = await fetch('/api/daily_muse');
-            const d = await r.json();
-            const el = document.getElementById('ai-muse');
-            el.innerText = d.message;
-            el.classList.remove('animate-pulse');
-        }
-        window.onload = () => { fetchMuse(); window.speechSynthesis.getVoices(); };
-    </script>
 </body>
 </html>
