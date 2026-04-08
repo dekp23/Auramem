@@ -5,7 +5,7 @@ Auramem is a medical-grade web application designed to bridge the gap between cl
 
 ---
 
-## 🚀 Live Production URL
+## Live Production URL
 **Live Site:** [https://auramem.onrender.com](https://auramem.onrender.com)  
 *Optimized for Tablet and Desktop use in clinical or home settings.*
 
