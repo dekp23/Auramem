@@ -1,6 +1,7 @@
 import os
 import secrets
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -64,6 +65,11 @@ def set_auth_cookie(response, token):
         max_age=3600,
     )
     return response
+
+
+def valid_image_url(value):
+    parsed = urlparse(value or "")
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def sb_api(endpoint, method="GET", data=None, auth_token=None):
@@ -229,6 +235,17 @@ def caregiver_portal():
                 auth_token=token,
             )
         elif form_type == "memory":
+            image_url = request.form.get("m_url", "").strip()
+            if not valid_image_url(image_url):
+                return (
+                    render_template(
+                        "caregiver.html",
+                        profile=get_profile(uid, token),
+                        memories=[],
+                        error="Please provide a valid image URL.",
+                    ),
+                    400,
+                )
             sb_api(
                 "rest/v1/memories",
                 "POST",
@@ -236,12 +253,78 @@ def caregiver_portal():
                     "user_id": uid,
                     "name": request.form.get("m_name"),
                     "relationship": request.form.get("m_rel"),
-                    "image_url": request.form.get("m_url"),
+                    "image_url": image_url,
+                    "message": request.form.get("m_msg"),
                 },
                 auth_token=token,
             )
+        elif form_type == "memory_edit":
+            memory_id = request.form.get("memory_id")
+            if memory_id:
+                image_url = request.form.get("m_url", "").strip()
+                if not valid_image_url(image_url):
+                    return (
+                        render_template(
+                            "caregiver.html",
+                            profile=get_profile(uid, token),
+                            memories=[],
+                            error="Please provide a valid image URL.",
+                        ),
+                        400,
+                    )
+                sb_api(
+                    f"rest/v1/memories?id=eq.{memory_id}&user_id=eq.{uid}",
+                    "PATCH",
+                    {
+                        "name": request.form.get("m_name"),
+                        "relationship": request.form.get("m_rel"),
+                        "image_url": image_url,
+                        "message": request.form.get("m_msg"),
+                    },
+                    auth_token=token,
+                )
+        elif form_type == "memory_delete":
+            memory_id = request.form.get("memory_id")
+            if memory_id:
+                sb_api(
+                    f"rest/v1/memories?id=eq.{memory_id}&user_id=eq.{uid}",
+                    "DELETE",
+                    auth_token=token,
+                )
     profile = get_profile(uid, token)
-    return render_template("caregiver.html", profile=profile, error=None)
+    memories = sb_api(f"rest/v1/memories?user_id=eq.{uid}", auth_token=token)
+    return render_template(
+        "caregiver.html", profile=profile, memories=memories, error=None
+    )
+
+
+@app.route("/api/activity", methods=["POST"])
+def record_activity():
+    if "user_id" not in session or not get_auth_token():
+        return jsonify({"error": "Authentication required"}), 401
+    if not validate_csrf():
+        return jsonify({"error": "Invalid CSRF token"}), 400
+    payload = request.get_json(silent=True) or {}
+    event_type = payload.get("event_type", "").strip()
+    if not event_type or len(event_type) > 64:
+        return jsonify({"error": "A valid event type is required"}), 400
+    metadata = payload.get("metadata", {})
+    if not isinstance(metadata, dict):
+        return jsonify({"error": "Activity metadata must be an object"}), 400
+    try:
+        sb_api(
+            "rest/v1/activity_events",
+            "POST",
+            {
+                "user_id": session["user_id"],
+                "event_type": event_type,
+                "metadata": metadata,
+            },
+            auth_token=get_auth_token(),
+        )
+    except requests.RequestException, RuntimeError, ValueError:
+        return jsonify({"error": "Activity could not be saved."}), 502
+    return jsonify({"status": "recorded"}), 201
 
 
 @app.route("/api/generate_report")
@@ -254,6 +337,10 @@ def generate_report():
             f"rest/v1/memories?user_id=eq.{session['user_id']}",
             auth_token=get_auth_token(),
         )
+        activities = sb_api(
+            f"rest/v1/activity_events?user_id=eq.{session['user_id']}",
+            auth_token=get_auth_token(),
+        )
     except requests.RequestException, RuntimeError, ValueError:
         return jsonify({"error": "Activity data is temporarily unavailable."}), 502
 
@@ -261,8 +348,9 @@ def generate_report():
     report = (
         "Informational activity summary\n\n"
         f"Generated for the current account with {memory_count} saved memory "
-        "photo(s). No clinical assessment or diagnosis is provided. "
-        "Game and conversation activity is not yet recorded in this report."
+        f"photo(s). {len(activities) if isinstance(activities, list) else 0} "
+        "structured activity event(s) are recorded. This is not a clinical "
+        "assessment or diagnosis."
     )
     return jsonify(
         {
@@ -270,7 +358,9 @@ def generate_report():
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "data_coverage": {
                 "saved_memories": memory_count,
-                "activity_events": 0,
+                "activity_events": (
+                    len(activities) if isinstance(activities, list) else 0
+                ),
             },
         }
     )

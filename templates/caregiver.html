@@ -2,7 +2,7 @@
 <html>
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
     <title>Caregiver Dashboard</title>
 </head>
 <body class="p-10 bg-slate-50">
@@ -15,6 +15,37 @@
                 <button type="submit" class="text-sky-600 font-bold">Log out</button>
             </form>
         </div>
+
+        <section class="card p-10">
+            <h2 class="text-2xl font-bold text-sky-900 mb-4">Saved Memories</h2>
+            {% if memories %}
+            <div class="space-y-4">
+                {% for memory in memories %}
+                <details class="rounded-2xl bg-white/70 p-4">
+                    <summary class="cursor-pointer font-bold text-sky-900">{{ memory.name }}{% if memory.relationship %} - {{ memory.relationship }}{% endif %}</summary>
+                    <div class="mt-4 grid gap-3">
+                        <form action="/caregiver" method="POST" class="grid gap-3">
+                            <input type="hidden" name="form_type" value="memory_edit">
+                            <input type="hidden" name="memory_id" value="{{ memory.id }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <label>Person's name<input name="m_name" value="{{ memory.name }}" required class="w-full"></label>
+                            <label>Relationship<input name="m_rel" value="{{ memory.relationship or '' }}" class="w-full"></label>
+                            <label>Image URL<input name="m_url" value="{{ memory.image_url }}" type="url" required class="w-full"></label>
+                            <label>Message<textarea name="m_msg" class="w-full">{{ memory.message or '' }}</textarea></label>
+                            <button type="submit" class="btn-main">Save changes</button>
+                        </form>
+                        <form action="/caregiver" method="POST">
+                            <input type="hidden" name="form_type" value="memory_delete">
+                            <input type="hidden" name="memory_id" value="{{ memory.id }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="text-red-700 underline">Delete memory</button>
+                        </form>
+                    </div>
+                </details>
+                {% endfor %}
+            </div>
+            {% else %}<p class="text-slate-600">No memories saved yet.</p>{% endif %}
+        </section>
 
         <div class="grid md:grid-cols-2 gap-10">
             <!-- AI Brain Section -->

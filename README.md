@@ -52,3 +52,7 @@ Set these environment variables before starting the app:
 
 The development server is not enabled in debug mode by default. Use Gunicorn for deployment,
 for example `gunicorn app:app`.
+
+The activity report expects the Supabase migration in
+`supabase/migrations/001_activity_events.sql` to be applied. It creates the structured,
+minimal activity-event store used for caregiver summaries and enables row-level security.

@@ -14,6 +14,18 @@ function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content || '';
 }
 
+async function recordActivity(eventType, metadata = {}) {
+    try {
+        await fetch('/api/activity', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken()},
+            body: JSON.stringify({event_type: eventType, metadata})
+        });
+    } catch (error) {
+        console.warn('Activity tracking unavailable', error);
+    }
+}
+
 function safeImageUrl(value) {
     try {
         const url = new URL(value, window.location.origin);
@@ -171,6 +183,7 @@ function checkX(answer) {
     for(let i=0; i<answer.length; i++) { guess += (document.getElementById('x-'+i).value || "").toUpperCase(); }
     
     if(guess === answer) {
+        recordActivity('crossword_completed', {correct: true});
         playChime();
         for(let i=0; i<answer.length; i++) {
             const el = document.getElementById('x-'+i);
@@ -179,6 +192,7 @@ function checkX(answer) {
         }
         setTimeout(() => { alert("Wonderful! You got it right."); closeModal(); }, 600);
     } else {
+        recordActivity('crossword_attempt', {correct: false});
         alert("Not quite, dear. Try again.");
     }
 }
@@ -203,7 +217,9 @@ function startFaceMatch() {
 }
 
 function handleFaceAns(choice, actual) {
-    if (choice === actual) { playChime(); alert("Correct!"); closeModal(); }
+    const correct = choice === actual;
+    recordActivity('face_match_completed', {correct});
+    if (correct) { playChime(); alert("Correct!"); closeModal(); }
     else { alert("That is " + actual + ". They love you very much."); closeModal(); }
 }
 

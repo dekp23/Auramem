@@ -57,9 +57,12 @@ def test_report_requires_authentication(client):
 
 
 def test_report_returns_data_coverage(client, monkeypatch):
-    monkeypatch.setattr(
-        app_module, "sb_api", lambda *args, **kwargs: [{"id": "memory"}]
-    )
+    def fake_sb_api(endpoint, *args, **kwargs):
+        if "activity_events" in endpoint:
+            return [{"id": "activity"}]
+        return [{"id": "memory"}]
+
+    monkeypatch.setattr(app_module, "sb_api", fake_sb_api)
     with client.session_transaction() as session:
         session["user_id"] = "user-1"
     client.set_cookie("aura_access_token", "token")
@@ -69,5 +72,36 @@ def test_report_returns_data_coverage(client, monkeypatch):
     assert response.status_code == 200
     assert response.get_json()["data_coverage"] == {
         "saved_memories": 1,
-        "activity_events": 0,
+        "activity_events": 1,
     }
+
+
+def test_activity_requires_authentication(client):
+    response = client.post("/api/activity", json={"event_type": "game_completed"})
+
+    assert response.status_code == 401
+
+
+def test_activity_records_structured_event(client, monkeypatch):
+    calls = []
+
+    def fake_sb_api(*args, **kwargs):
+        calls.append((args, kwargs))
+        return [{"id": "activity"}]
+
+    monkeypatch.setattr(app_module, "sb_api", fake_sb_api)
+    client.get("/login")
+    with client.session_transaction() as session:
+        session["user_id"] = "user-1"
+        token = session["_csrf_token"]
+    client.set_cookie("aura_access_token", "token")
+
+    response = client.post(
+        "/api/activity",
+        json={"event_type": "game_completed", "metadata": {"correct": True}},
+        headers={"X-CSRF-Token": token},
+    )
+
+    assert response.status_code == 201
+    assert calls[0][0][0] == "rest/v1/activity_events"
+    assert calls[0][0][2]["metadata"] == {"correct": True}

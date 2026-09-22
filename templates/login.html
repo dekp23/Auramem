@@ -1,4 +1,6 @@
 <body class="p-10 bg-sky-100 flex items-center justify-center min-h-screen">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <form action="/login" method="POST" class="bg-white p-10 rounded-3xl shadow-xl w-full max-w-md">
         <h2 class="text-3xl font-bold mb-6">Caregiver Login</h2>
         {% if error %}<p role="alert" class="mb-4 text-red-700">{{ error }}</p>{% endif %}
