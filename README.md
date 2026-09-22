@@ -48,6 +48,8 @@ Set these environment variables before starting the app:
 - `FLASK_SECRET`: a long, random secret used to sign the session.
 - `SUPABASE_URL` and `SUPABASE_KEY`: Supabase project credentials.
 - `GROQ_API_KEY`: Groq API credential.
+- `SUPABASE_SERVICE_ROLE_KEY`: server-only Supabase admin credential required for account deletion. Never expose this value to the browser.
+- `LOG_LEVEL`: optional Python logging level such as `INFO` or `DEBUG`.
 - `COOKIE_SECURE=true`: enable secure auth cookies when serving over HTTPS.
 
 The development server is not enabled in debug mode by default. Use Gunicorn for deployment,

@@ -130,28 +130,42 @@ function startVoice() {
 // ==========================================
 function startWordSearch() {
     const grid = [['S','U','N','X','Y','Z','A','B'],['C','A','L','M','D','E','F','G'],['S','K','Y','H','I','J','K','L'],['B','L','U','E','M','N','O','P'],['A','R','T','Q','R','S','T','U'],['V','W','X','Y','Z','A','B','C'],['D','E','F','G','H','I','J','K'],['L','M','N','O','P','Q','R','S']];
-    
-    const gridHTML = grid.map((row, r) => row.map((l, c) => `
-        <div onclick="wsCellClick(this,'${l}')" 
+    window.wordSearchFound = new Set();
+    const gridHTML = grid.map((row, r) => row.map((letter, c) => `
+        <button type="button" onclick="wsCellClick(this,${r},${c})"
              class="w-10 h-10 bg-white flex items-center justify-center font-bold rounded-lg cursor-pointer border border-sky-100 shadow-sm transition-all text-xl">
-             ${l}
-        </div>
+             ${letter}
+        </button>
     `).join('')).join('');
 
     showModal("Nature Search", `
         <div class="mb-4 text-sky-700 font-bold text-xl">Find: SUN, CALM, SKY, BLUE</div>
+        <div id="word-search-status" class="mb-4" role="status" aria-live="polite">Select the letters in each word from left to right.</div>
         <div class="grid grid-cols-8 gap-2 mx-auto" style="width:fit-content;">${gridHTML}</div>
     `);
 }
 
-function wsCellClick(el, letter) {
-    if (el.style.background.includes('rgb(253, 224, 71)')) return; // Already found
-
-    if ("SUNCALMSKYBLUE".includes(letter)) {
+function wsCellClick(el, row, col) {
+    const words = {
+        SUN: [[0, 0], [0, 1], [0, 2]],
+        CALM: [[1, 0], [1, 1], [1, 2], [1, 3]],
+        SKY: [[2, 0], [2, 1], [2, 2]],
+        BLUE: [[3, 0], [3, 1], [3, 2], [3, 3]]
+    };
+    const key = `${row},${col}`;
+    const word = Object.keys(words).find(name => words[name].some(([r, c]) => `${r},${c}` === key));
+    if (window.wordSearchFound.has(key)) return;
+    if (word) {
+        window.wordSearchFound.add(key);
         el.style.background = '#fde047'; // Success Yellow
         el.style.color = '#713f12';
         el.style.transform = 'scale(1.1)';
         playChime();
+        const complete = Object.values(words).every(cells => cells.every(([r, c]) => window.wordSearchFound.has(`${r},${c}`)));
+        if (complete) {
+            recordActivity('word_search_completed', {correct: true});
+            document.getElementById('word-search-status').textContent = 'Wonderful. You found every word.';
+        }
     } else {
         el.style.background = '#fee2e2'; // Brief Error Red
         setTimeout(() => el.style.background = 'white', 300);
@@ -211,7 +225,7 @@ function startFaceMatch() {
     showModal("Who is this?", `
         <img src="${imageUrl}" alt="Memory photo" class="w-56 h-56 rounded-full mx-auto mb-8 border-8 border-white shadow-2xl object-cover">
         <div class="grid gap-4">
-            ${choices.map(c => `<button class="btn-main text-2xl py-4" onclick="handleFaceAns('${escapeHtml(c)}','${actualName}')">${escapeHtml(c)}</button>`).join('')}
+            ${choices.map(c => `<button class="btn-main text-2xl py-4" data-choice="${escapeHtml(c)}" data-actual="${actualName}" onclick="handleFaceAns(this.dataset.choice,this.dataset.actual)">${escapeHtml(c)}</button>`).join('')}
         </div>
     `);
 }

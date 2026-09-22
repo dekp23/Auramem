@@ -1,5 +1,6 @@
 import os
 import secrets
+import logging
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -19,10 +20,16 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET")
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger("auramem")
 
 SB_URL = os.environ.get("SUPABASE_URL")
 SB_KEY = os.environ.get("SUPABASE_KEY")
 GROQ_KEY = os.environ.get("GROQ_API_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 REQUEST_TIMEOUT = 10
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
@@ -88,6 +95,12 @@ def sb_api(endpoint, method="GET", data=None, auth_token=None):
         json=data,
         timeout=REQUEST_TIMEOUT,
     )
+    logger.info(
+        "Supabase request method=%s endpoint=%s status=%s",
+        method,
+        endpoint,
+        response.status_code,
+    )
     response.raise_for_status()
     return response.json()
 
@@ -109,6 +122,11 @@ def get_profile(uid, token):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
 
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -135,6 +153,7 @@ def signup():
             if "id" in response.json():
                 return redirect(url_for("login"))
         except requests.RequestException, ValueError:
+            logger.exception("Signup request failed")
             return (
                 render_template(
                     "signup.html", error="We could not create that account."
@@ -174,6 +193,7 @@ def login():
                     redirect(url_for("patient_view")), result["access_token"]
                 )
         except requests.RequestException, ValueError:
+            logger.exception("Login request failed")
             return (
                 render_template("login.html", error="We could not sign you in."),
                 502,
@@ -189,6 +209,56 @@ def logout():
     response.delete_cookie("aura_access_token")
     session.clear()
     return response
+
+
+@app.route("/account/delete", methods=["POST"])
+def delete_account():
+    if "user_id" not in session or not get_auth_token():
+        return jsonify({"error": "Authentication required"}), 401
+    if not validate_csrf():
+        return jsonify({"error": "Invalid CSRF token"}), 400
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        logger.error("Account deletion unavailable: service role key is not configured")
+        return jsonify({"error": "Account deletion is not configured"}), 503
+
+    uid = session["user_id"]
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+    }
+    try:
+        cleanup_filters = {
+            "activity_events": f"user_id=eq.{uid}",
+            "memories": f"user_id=eq.{uid}",
+            "profiles": f"id=eq.{uid}",
+        }
+        for table, query in cleanup_filters.items():
+            response = requests.delete(
+                f"{SB_URL}/rest/v1/{table}?{query}",
+                headers=headers,
+                timeout=REQUEST_TIMEOUT,
+            )
+            logger.info(
+                "Account cleanup table=%s status=%s", table, response.status_code
+            )
+            response.raise_for_status()
+        response = requests.delete(
+            f"{SB_URL}/auth/v1/admin/users/{uid}",
+            headers=headers,
+            timeout=REQUEST_TIMEOUT,
+        )
+        logger.info("Account deletion user=%s status=%s", uid, response.status_code)
+        response.raise_for_status()
+    except requests.RequestException:
+        logger.exception("Account deletion failed user=%s", uid)
+        return jsonify(
+            {"error": "Account could not be deleted. Please try again."}
+        ), 502
+
+    result = redirect(url_for("index"))
+    result.delete_cookie("aura_access_token")
+    session.clear()
+    return result
 
 
 @app.route("/patient")
@@ -372,6 +442,9 @@ def chat():
         return jsonify({"error": "Authentication required"}), 401
     if not validate_csrf():
         return jsonify({"error": "Invalid CSRF token"}), 400
+    if not GROQ_KEY:
+        logger.error("Chat unavailable: GROQ_API_KEY is not configured")
+        return jsonify({"error": "Aura is not configured yet."}), 503
     payload = request.get_json(silent=True) or {}
     user_msg = payload.get("message", "").strip()
     if not user_msg:
@@ -402,9 +475,11 @@ def chat():
             },
             timeout=REQUEST_TIMEOUT,
         )
+        logger.info("Groq chat response status=%s", response.status_code)
         response.raise_for_status()
         reply = response.json()["choices"][0]["message"]["content"].strip()
     except requests.RequestException, KeyError, TypeError, ValueError:
+        logger.exception("Groq chat request failed")
         return jsonify(
             {"error": "Aura is temporarily unavailable. Please try again."}
         ), 502
