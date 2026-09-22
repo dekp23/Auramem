@@ -59,4 +59,3 @@ for example `gunicorn app:app`.
 The activity report expects the Supabase migration in
 `supabase/migrations/001_activity_events.sql` to be applied. It creates the structured,
 minimal activity-event store used for caregiver summaries and enables row-level security.
-
