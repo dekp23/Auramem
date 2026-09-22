@@ -4,6 +4,25 @@
 const synth = window.speechSynthesis;
 let voices = [];
 
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = String(value ?? '');
+    return div.innerHTML;
+}
+
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
+
+function safeImageUrl(value) {
+    try {
+        const url = new URL(value, window.location.origin);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+    } catch {
+        return '';
+    }
+}
+
 function loadVoices() {
     voices = synth.getVoices();
 }
@@ -60,24 +79,36 @@ async function sendChat() {
     const box = document.getElementById('chat-messages');
     const msg = input.value.trim(); if(!msg) return;
     
-    box.innerHTML += `<div class="p-3 bg-white/60 rounded-2xl mb-2 text-right shadow-sm"><b>You:</b> ${msg}</div>`;
+    box.insertAdjacentHTML('beforeend', `<div class="p-3 bg-white/60 rounded-2xl mb-2 text-right shadow-sm"><b>You:</b> ${escapeHtml(msg)}</div>`);
     input.value = "";
     box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
 
-    const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ message: msg })
-    });
-    const data = await res.json();
-    box.innerHTML += `<div class="p-3 bg-blue-500/10 rounded-2xl mb-2 text-sky-900 shadow-sm font-medium"><b>Aura:</b> ${data.reply}</div>`;
+    let data;
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken()},
+            body: JSON.stringify({ message: msg })
+        });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Chat request failed');
+    } catch (error) {
+        box.insertAdjacentHTML('beforeend', `<div role="alert" class="p-3 bg-red-100 rounded-2xl mb-2 text-red-800">${escapeHtml(error.message)}</div>`);
+        return;
+    }
+    box.insertAdjacentHTML('beforeend', `<div class="p-3 bg-blue-500/10 rounded-2xl mb-2 text-sky-900 shadow-sm font-medium"><b>Aura:</b> ${escapeHtml(data.reply)}</div>`);
     
     speakAura(data.reply);
     box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
 }
 
 function startVoice() {
-    const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+        alert("Voice input is not supported in this browser.");
+        return;
+    }
+    const rec = new Recognition();
     rec.onresult = (e) => { document.getElementById('chat-input').value = e.results[0][0].transcript; sendChat(); };
     rec.start();
 }
@@ -159,12 +190,14 @@ function startFaceMatch() {
     const data = JSON.parse(document.getElementById('memory-vault').textContent);
     if(!data || data.length === 0) return alert("Add family photos in settings first!");
     const p = data[Math.floor(Math.random() * data.length)];
+    const actualName = escapeHtml(p.name);
     const choices = [p.name, "A Friend", "Neighbor"].sort(() => Math.random() - 0.5);
-    
+    const imageUrl = safeImageUrl(p.image_url);
+
     showModal("Who is this?", `
-        <img src="${p.image_url}" class="w-56 h-56 rounded-full mx-auto mb-8 border-8 border-white shadow-2xl object-cover">
+        <img src="${imageUrl}" alt="Memory photo" class="w-56 h-56 rounded-full mx-auto mb-8 border-8 border-white shadow-2xl object-cover">
         <div class="grid gap-4">
-            ${choices.map(c => `<button class="btn-main text-2xl py-4" onclick="handleFaceAns('${c}','${p.name}')">${c}</button>`).join('')}
+            ${choices.map(c => `<button class="btn-main text-2xl py-4" onclick="handleFaceAns('${escapeHtml(c)}','${actualName}')">${escapeHtml(c)}</button>`).join('')}
         </div>
     `);
 }
@@ -177,7 +210,7 @@ function handleFaceAns(choice, actual) {
 function showModal(t, h) {
     const m = document.createElement('div'); m.id = "aura-modal";
     m.className = "fixed inset-0 z-[999] flex items-center justify-center bg-sky-900/80 backdrop-blur-md p-4";
-    m.innerHTML = `<div class="card p-10 max-w-lg w-full text-center bg-white/95 shadow-2xl animate-fade-in" style="border-radius:40px;"><h2 class="text-4xl font-bold mb-6 text-sky-950">${t}</h2><div id="modal-content">${h}</div><button onclick="closeModal()" class="mt-8 text-slate-400 underline font-bold">Close Game</button></div>`;
+    m.innerHTML = `<div class="card p-10 max-w-lg w-full text-center bg-white/95 shadow-2xl animate-fade-in" style="border-radius:40px;"><h2 class="text-4xl font-bold mb-6 text-sky-950">${escapeHtml(t)}</h2><div id="modal-content">${h}</div><button onclick="closeModal()" class="mt-8 text-slate-400 underline font-bold">Close Game</button></div>`;
     document.body.appendChild(m);
 }
 function closeModal() { const m = document.getElementById('aura-modal'); if(m) m.remove(); }
