@@ -129,47 +129,109 @@ function startVoice() {
 // 3. WORD SEARCH (Yellow + Chime)
 // ==========================================
 function startWordSearch() {
-    const grid = [['S','U','N','X','Y','Z','A','B'],['C','A','L','M','D','E','F','G'],['S','K','Y','H','I','J','K','L'],['B','L','U','E','M','N','O','P'],['A','R','T','Q','R','S','T','U'],['V','W','X','Y','Z','A','B','C'],['D','E','F','G','H','I','J','K'],['L','M','N','O','P','Q','R','S']];
-    window.wordSearchFound = new Set();
+    const size = 8;
+    const bank = [
+        'CALM', 'PEACE', 'SUN', 'SKY', 'BLUE', 'SMILE', 'KIND',
+        'HOPE', 'LIGHT', 'BLOOM', 'BIRD', 'WARM', 'CLOUD', 'WATER'
+    ];
+    const requestedWords = shuffle([...bank]).slice(0, 4);
+    const directions = [
+        [-1, -1], [-1, 0], [-1, 1], [0, -1],
+        [0, 1], [1, -1], [1, 0], [1, 1]
+    ];
+    const grid = Array.from({length: size}, () => Array(size).fill(''));
+    const placements = {};
+
+    for (const word of requestedWords) {
+        let placed = false;
+        for (let attempt = 0; attempt < 200 && !placed; attempt++) {
+            const [dr, dc] = directions[Math.floor(Math.random() * directions.length)];
+            const row = Math.floor(Math.random() * size);
+            const col = Math.floor(Math.random() * size);
+            const cells = [...word].map((letter, index) => [
+                row + dr * index, col + dc * index, letter
+            ]);
+            if (cells.every(([r, c, letter]) =>
+                r >= 0 && r < size && c >= 0 && c < size &&
+                (!grid[r][c] || grid[r][c] === letter)
+            )) {
+                cells.forEach(([r, c, letter]) => { grid[r][c] = letter; });
+                placements[word] = cells.map(([r, c]) => `${r},${c}`);
+                placed = true;
+            }
+            const words = Object.keys(placements);
+        }
+    }
+    for (let row = 0; row < size; row++) {
+        for (let col = 0; col < size; col++) {
+            if (!grid[row][col]) {
+                grid[row][col] = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+            }
+        }
+    }
+    window.wordSearchState = {placements, found: new Set(), selected: []};
     const gridHTML = grid.map((row, r) => row.map((letter, c) => `
         <button type="button" onclick="wsCellClick(this,${r},${c})"
-             class="w-10 h-10 bg-white flex items-center justify-center font-bold rounded-lg cursor-pointer border border-sky-100 shadow-sm transition-all text-xl">
+             class="w-10 h-10 bg-white flex items-center justify-center font-bold rounded-lg cursor-pointer border border-sky-100 shadow-sm transition-all text-xl"
+             aria-label="Letter ${letter}, row ${r + 1}, column ${c + 1}">
              ${letter}
         </button>
     `).join('')).join('');
 
     showModal("Nature Search", `
-        <div class="mb-4 text-sky-700 font-bold text-xl">Find: SUN, CALM, SKY, BLUE</div>
-        <div id="word-search-status" class="mb-4" role="status" aria-live="polite">Select the letters in each word from left to right.</div>
+        <div class="mb-4 text-sky-700 font-bold text-xl">Find: ${words.join(', ')}</div>
+        <div id="word-search-status" class="mb-4" role="status" aria-live="polite">Select each word one letter at a time.</div>
         <div class="grid grid-cols-8 gap-2 mx-auto" style="width:fit-content;">${gridHTML}</div>
     `);
 }
 
 function wsCellClick(el, row, col) {
-    const words = {
-        SUN: [[0, 0], [0, 1], [0, 2]],
-        CALM: [[1, 0], [1, 1], [1, 2], [1, 3]],
-        SKY: [[2, 0], [2, 1], [2, 2]],
-        BLUE: [[3, 0], [3, 1], [3, 2], [3, 3]]
-    };
     const key = `${row},${col}`;
-    const word = Object.keys(words).find(name => words[name].some(([r, c]) => `${r},${c}` === key));
-    if (window.wordSearchFound.has(key)) return;
-    if (word) {
-        window.wordSearchFound.add(key);
-        el.style.background = '#fde047'; // Success Yellow
-        el.style.color = '#713f12';
-        el.style.transform = 'scale(1.1)';
-        playChime();
-        const complete = Object.values(words).every(cells => cells.every(([r, c]) => window.wordSearchFound.has(`${r},${c}`)));
-        if (complete) {
-            recordActivity('word_search_completed', {correct: true});
-            document.getElementById('word-search-status').textContent = 'Wonderful. You found every word.';
-        }
-    } else {
-        el.style.background = '#fee2e2'; // Brief Error Red
-        setTimeout(() => el.style.background = 'white', 300);
+    const state = window.wordSearchState;
+    if (!state || state.found.has(key)) return;
+    if (state.selected.includes(key)) {
+        state.selected = state.selected.filter(cell => cell !== key);
+        el.style.background = 'white';
+        return;
     }
+    state.selected.push(key);
+    el.style.background = '#bae6fd';
+    const match = Object.entries(state.placements).find(([, cells]) =>
+        cells.length === state.selected.length &&
+        (cells.every((cell, index) => cell === state.selected[index]) ||
+         cells.slice().reverse().every((cell, index) => cell === state.selected[index]))
+    );
+    if (match) {
+        state.found.add(match[0]);
+        state.selected.forEach(cell => {
+            const [r, c] = cell.split(',');
+            document.querySelector(`[onclick="wsCellClick(this,${r},${c})"]`).style.background = '#fde047';
+        });
+        state.selected = [];
+        playChime();
+        const remaining = Object.keys(state.placements).length - state.found.size;
+        document.getElementById('word-search-status').textContent =
+            remaining ? `${remaining} word(s) remaining.` : 'Wonderful. You found every word.';
+        if (!remaining) recordActivity('word_search_completed', {correct: true});
+    } else if (!Object.values(state.placements).some(cells =>
+        cells.slice(0, state.selected.length).every((cell, index) => cell === state.selected[index]) ||
+        cells.slice().reverse().slice(0, state.selected.length).every((cell, index) => cell === state.selected[index])
+    )) {
+        state.selected.forEach(cell => {
+            const [r, c] = cell.split(',');
+            document.querySelector(`[onclick="wsCellClick(this,${r},${c})"]`).style.background = 'white';
+        });
+        state.selected = [];
+        document.getElementById('word-search-status').textContent = 'That sequence is not a word. Try again.';
+    }
+}
+
+function shuffle(items) {
+    for (let index = items.length - 1; index > 0; index--) {
+        const swap = Math.floor(Math.random() * (index + 1));
+        [items[index], items[swap]] = [items[swap], items[index]];
+    }
+    return items;
 }
 
 // ==========================================

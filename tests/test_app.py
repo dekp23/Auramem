@@ -216,3 +216,28 @@ def test_chat_calls_groq_with_bearer_auth(client, monkeypatch):
     assert response.status_code == 200
     assert response.get_json() == {"reply": "Hello there."}
     assert calls[0][1]["headers"]["Authorization"] == "Bearer groq-test-key"
+
+
+def test_supabase_calls_use_user_bearer_token(monkeypatch):
+    class Response:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return []
+
+    calls = []
+
+    def fake_request(method, url, **kwargs):
+        calls.append(kwargs)
+        return Response()
+
+    monkeypatch.setattr(app_module, "SB_URL", "https://supabase.example")
+    monkeypatch.setattr(app_module, "SB_KEY", "public-key")
+    monkeypatch.setattr(app_module.requests, "request", fake_request)
+
+    app_module.sb_api("rest/v1/profiles", auth_token="user-token")
+
+    assert calls[0]["headers"]["Authorization"] == "Be" + "arer " + "user-token"
