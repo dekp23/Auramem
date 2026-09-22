@@ -28,5 +28,22 @@ def test_authenticated_views_redirect_to_login(client, path):
 def test_chat_requires_authentication(client):
     response = client.post("/api/chat", json={"message": "Hello"})
 
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "Authentication required"}
+
+
+def test_login_form_includes_csrf_token(client):
+    response = client.get("/login")
+
     assert response.status_code == 200
-    assert response.get_json() == {"reply": "Expired"}
+    assert b'name="_csrf_token"' in response.data
+
+
+def test_login_rejects_missing_csrf_token(client):
+    response = client.post(
+        "/login",
+        data={"email": "caregiver@example.com", "password": "password"},
+    )
+
+    assert response.status_code == 400
+    assert b"form expired" in response.data

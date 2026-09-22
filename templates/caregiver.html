@@ -16,6 +16,7 @@
             <!-- AI Brain Section -->
             <form action="/caregiver" method="POST" class="card p-10 space-y-4">
                 <input type="hidden" name="form_type" value="profile">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <h2 class="text-2xl font-bold text-sky-900">Aura's Brain (AI Memory)</h2>
                 <input name="p_name" value="{{ profile.patient_name }}" class="w-full" placeholder="Patient's Name">
                 <input name="p_loc" value="{{ profile.location_status }}" class="w-full" placeholder="Current Location">
@@ -26,6 +27,7 @@
             <!-- Memory Upload Section -->
             <form action="/caregiver" method="POST" class="card p-10 space-y-4">
                 <input type="hidden" name="form_type" value="memory">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <h2 class="text-2xl font-bold text-sky-900">Add Memory Photo</h2>
                 <input name="m_name" class="w-full" placeholder="Person's Name">
                 <input name="m_rel" class="w-full" placeholder="Relationship">

@@ -2,8 +2,10 @@
     <div class="card p-10 w-full max-w-md">
         <h2 class="text-3xl font-bold mb-6 text-sky-900">Sign Up</h2>
         <p class="mb-6 text-sky-700">Create an account to manage family memories and customize the AI.</p>
+        {% if error %}<p role="alert" class="mb-4 text-red-700">{{ error }}</p>{% endif %}
         
         <form action="/signup" method="POST" class="space-y-4">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <input type="email" name="email" placeholder="Caregiver Email" class="w-full" required>
             <input type="password" name="password" placeholder="Choose a Password" class="w-full" required>
             <button type="submit" class="btn-main w-full py-4 rounded-xl font-bold">Create Account</button>
