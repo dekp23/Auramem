@@ -38,7 +38,13 @@
                     <img src="{{ m.image_url }}" class="w-24 h-24 rounded-full border-4 border-white object-cover shadow-md flex-shrink-0" title="{{ m.name }}">
                     {% endfor %}
                 </div>
-                <div class="text-center mt-4"><a href="/caregiver" class="text-sky-400 underline">Caregiver Settings</a></div>
+                <div class="text-center mt-4 flex justify-center gap-4">
+                    <a href="/caregiver" class="text-sky-400 underline">Caregiver Settings</a>
+                    <form action="/logout" method="POST">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="text-sky-400 underline">Log out</button>
+                    </form>
+                </div>
             </div>
         </section>
     </div>

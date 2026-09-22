@@ -10,6 +10,10 @@
         <div class="flex justify-between items-center">
             <h1 class="text-4xl font-bold text-sky-950 underline">Aura Control Center</h1>
             <a href="/patient" class="text-sky-600 font-bold">View Patient Board ➜</a>
+            <form action="/logout" method="POST">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="text-sky-600 font-bold">Log out</button>
+            </form>
         </div>
 
         <div class="grid md:grid-cols-2 gap-10">
