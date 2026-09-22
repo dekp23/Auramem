@@ -21,6 +21,7 @@ __pycache__/
 *.pyd
 .pytest_cache/
 .ipynb_checkpoints/
+node_modules/
 
 # --- IDE Settings (Optional but clean) ---
 .vscode/
