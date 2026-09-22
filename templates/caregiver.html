@@ -43,9 +43,10 @@
 
         <!-- Reporting Section -->
         <div class="card p-10">
-            <h2 class="text-2xl font-bold text-sky-900 mb-4">Clinical Progress Report</h2>
-            <button onclick="getReport()" class="btn-main bg-amber-600">Generate AI Summary for Doctor</button>
-            <div id="report-output" class="mt-6 p-6 bg-white rounded-2xl italic text-gray-700">No report generated yet.</div>
+            <h2 class="text-2xl font-bold text-sky-900 mb-4">Activity Summary</h2>
+            <p class="mb-4 text-slate-600">Informational only; this is not a clinical assessment or diagnosis.</p>
+            <button onclick="getReport()" class="btn-main bg-amber-600">Generate Activity Summary</button>
+            <div id="report-output" role="status" aria-live="polite" class="mt-6 p-6 bg-white rounded-2xl italic text-gray-700">No report generated yet.</div>
         </div>
     </div>
 
@@ -55,7 +56,7 @@
             out.innerText = "Analyzing logs...";
             const res = await fetch('/api/generate_report');
             const data = await res.json();
-            out.innerText = data.report;
+            out.innerText = res.ok ? `${data.report}\n\nGenerated: ${data.generated_at}` : data.error;
         }
     </script>
 </body>

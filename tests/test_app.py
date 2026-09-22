@@ -1,12 +1,12 @@
 import pytest
 
-from app import app
+import app as app_module
 
 
 @pytest.fixture()
 def client():
-    app.config.update(TESTING=True, SECRET_KEY="test-secret")
-    with app.test_client() as test_client:
+    app_module.app.config.update(TESTING=True, SECRET_KEY="test-secret")
+    with app_module.app.test_client() as test_client:
         yield test_client
 
 
@@ -47,3 +47,27 @@ def test_login_rejects_missing_csrf_token(client):
 
     assert response.status_code == 400
     assert b"form expired" in response.data
+
+
+def test_report_requires_authentication(client):
+    response = client.get("/api/generate_report")
+
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "Authentication required"}
+
+
+def test_report_returns_data_coverage(client, monkeypatch):
+    monkeypatch.setattr(
+        app_module, "sb_api", lambda *args, **kwargs: [{"id": "memory"}]
+    )
+    with client.session_transaction() as session:
+        session["user_id"] = "user-1"
+    client.set_cookie("aura_access_token", "token")
+
+    response = client.get("/api/generate_report")
+
+    assert response.status_code == 200
+    assert response.get_json()["data_coverage"] == {
+        "saved_memories": 1,
+        "activity_events": 0,
+    }

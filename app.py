@@ -1,5 +1,6 @@
 import os
 import secrets
+from datetime import datetime, timezone
 
 import requests
 from dotenv import load_dotenv
@@ -241,6 +242,38 @@ def caregiver_portal():
             )
     profile = get_profile(uid, token)
     return render_template("caregiver.html", profile=profile, error=None)
+
+
+@app.route("/api/generate_report")
+def generate_report():
+    if "user_id" not in session or not get_auth_token():
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        memories = sb_api(
+            f"rest/v1/memories?user_id=eq.{session['user_id']}",
+            auth_token=get_auth_token(),
+        )
+    except requests.RequestException, RuntimeError, ValueError:
+        return jsonify({"error": "Activity data is temporarily unavailable."}), 502
+
+    memory_count = len(memories) if isinstance(memories, list) else 0
+    report = (
+        "Informational activity summary\n\n"
+        f"Generated for the current account with {memory_count} saved memory "
+        "photo(s). No clinical assessment or diagnosis is provided. "
+        "Game and conversation activity is not yet recorded in this report."
+    )
+    return jsonify(
+        {
+            "report": report,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "data_coverage": {
+                "saved_memories": memory_count,
+                "activity_events": 0,
+            },
+        }
+    )
 
 
 @app.route("/api/chat", methods=["POST"])
