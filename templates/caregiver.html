@@ -9,7 +9,7 @@
     <div class="max-w-5xl mx-auto space-y-12">
         <div class="flex justify-between items-center">
             <h1 class="text-4xl font-bold text-sky-950 underline">Aura Control Center</h1>
-            <a href="/patient" class="text-sky-600 font-bold">View Patient Board ➜</a>
+            <a href="/patient" class="text-sky-600 font-bold">View Patient Board </a>
             <form action="/logout" method="POST">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="text-sky-600 font-bold">Log out</button>
@@ -79,6 +79,16 @@
             <button onclick="getReport()" class="btn-main bg-amber-600">Generate Activity Summary</button>
             <div id="report-output" role="status" aria-live="polite" class="mt-6 p-6 bg-white rounded-2xl italic text-gray-700">No report generated yet.</div>
         </div>
+
+
+        <section class="card p-10 border border-red-200">
+            <h2 class="text-2xl font-bold text-red-800 mb-2">Delete account</h2>
+            <p class="text-slate-700 mb-4">This permanently removes your account and saved Auramem data.</p>
+            <form action="/account/delete" method="POST" onsubmit="return confirm('Delete this account and all saved data?');">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="text-red-800 underline font-bold">Delete my account</button>
+            </form>
+        </section>
     </div>
 
     <script>
