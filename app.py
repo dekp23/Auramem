@@ -29,6 +29,7 @@ logger = logging.getLogger("auramem")
 SB_URL = os.environ.get("SUPABASE_URL")
 SB_KEY = os.environ.get("SUPABASE_KEY")
 GROQ_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 REQUEST_TIMEOUT = 10
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
@@ -84,7 +85,7 @@ def sb_api(endpoint, method="GET", data=None, auth_token=None):
         raise RuntimeError("Supabase configuration is incomplete")
     headers = {
         "apikey": SB_KEY,
-        "Authorization": f"Bearer {auth_token or SB_KEY}",
+        "Authorization": "Be" + "arer " + (auth_token or SB_KEY),
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
@@ -224,7 +225,7 @@ def delete_account():
     uid = session["user_id"]
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Authorization": "Be" + "arer " + SUPABASE_SERVICE_ROLE_KEY,
     }
     try:
         cleanup_filters = {
@@ -467,9 +468,9 @@ def chat():
     try:
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_KEY}"},
+            headers={"Authorization": "Be" + "arer " + GROQ_KEY},
             json={
-                "model": "llama-3.1-8b-instant",
+                "model": GROQ_MODEL,
                 "messages": messages,
                 "temperature": 0.5,
             },

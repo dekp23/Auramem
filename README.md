@@ -48,6 +48,7 @@ Set these environment variables before starting the app:
 - `FLASK_SECRET`: a long, random secret used to sign the session.
 - `SUPABASE_URL` and `SUPABASE_KEY`: Supabase project credentials.
 - `GROQ_API_KEY`: Groq API credential.
+- `GROQ_MODEL`: optional Groq model name; defaults to `llama-3.3-70b-versatile`.
 - `SUPABASE_SERVICE_ROLE_KEY`: server-only Supabase admin credential required for account deletion. Never expose this value to the browser.
 - `LOG_LEVEL`: optional Python logging level such as `INFO` or `DEBUG`.
 - `COOKIE_SECURE=true`: enable secure auth cookies when serving over HTTPS.
@@ -58,3 +59,4 @@ for example `gunicorn app:app`.
 The activity report expects the Supabase migration in
 `supabase/migrations/001_activity_events.sql` to be applied. It creates the structured,
 minimal activity-event store used for caregiver summaries and enables row-level security.
+
